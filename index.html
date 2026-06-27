@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://telegram.org"></script>
+    <style>
+        body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 10px; }
+        .profile { display: flex; align-items: center; margin: 10px; background: #222; padding: 10px; border-radius: 8px; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; margin-right: 12px; }
+        .v-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; }
+        video { width: 100%; border-radius: 8px; }
+        .live { position: absolute; top: 8px; left: 8px; background: red; padding: 3px 6px; font-size: 11px; font-weight: bold; border-radius: 3px; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; justify-content: center; align-items: center; }
+        button { background: #ff4757; color: white; border: none; padding: 12px 20px; font-size: 15px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="profile">
+        <img id="h-img" src="" class="avatar">
+        <div style="text-align:left;"><h4 id="h-name" style="margin:0;">Loading...</h4><p id="v-cost" style="margin:3px 0 0 0; color:#aaa; font-size:12px;"></p></div>
+    </div>
+    <div class="v-container">
+        <span class="live">🔴 LIVE</span>
+        <video id="player" autoplay muted playsinline></video>
+        <div class="overlay" id="pay-screen">
+            <h3>🔒 30 வினாடி இலவச நேரம் முடிந்தது!</h3>
+            <p>தொடர்ந்து நேரலையைக் காண கட்டணம் செலுத்தவும்.</p>
+            <button onclick="pay()">Pay & Unlock</button>
+        </div>
+    </div>
+    <script>
+        const tg = window.Telegram.WebApp; tg.expand();
+        const user = tg.initDataUnsafe?.user;
+        let vId, amt;
+
+        async function init() {
+            const res = await fetch('/api/get-stream-data');
+            const data = await res.json();
+            if(!data.id) return document.body.innerHTML = "<h3>தற்போது நேரலை இல்லை!</h3>";
+            
+            vId = data.id; amt = data.hosts.cost_per_video;
+            document.getElementById('h-name').innerText = data.hosts.name;
+            document.getElementById('v-cost').innerText = `Cost: ₹${amt}`;
+            document.getElementById('h-img').src = data.hosts.profile_pic || 'https://placeholder.com';
+            
+            const player = document.getElementById('player');
+            player.src = data.video_url;
+            
+            player.addEventListener('timeupdate', async () => {
+                if (player.currentTime >= 30) {
+                    player.pause();
+                    const check = await fetch('/api/check-access', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ userId: user?.id?.toString() || 'guest', videoId: vId })
+                    });
+                    const access = await check.json();
+                    if (!access.hasAccess) {
+                        player.controls = false;
+                        document.getElementById('pay-screen').style.display = "flex";
+                    } else {
+                        player.controls = true; player.play();
+                    }
+                }
+            });
+        }
+        async function pay() {
+            const res = await fetch('/api/pay-video', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ amount: amt, customerId: user?.id?.toString() || 'guest', videoId: vId })
+            });
+            const data = await res.json();
+            if(data.payment_link) tg.openLink(data.payment_link);
+        }
+        init();
+    </script>
+</body>
+</html>
