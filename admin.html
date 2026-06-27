@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: #fff; padding: 20px; max-width: 500px; margin: 0 auto; }
+        .box { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        input, select, button { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; }
+        button { background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Admin Dashboard</h2>
+    <div class="box">
+        <h3>1. Create Host</h3>
+        <input type="text" id="h-name" placeholder="Host Name">
+        <input type="text" id="h-pic" placeholder="Profile Pic Link">
+        <input type="number" id="h-cost" placeholder="Cost (INR)">
+        <button onclick="createHost()">Save Host</button>
+    </div>
+    <div class="box">
+        <h3>2. Link Live Video</h3>
+        <select id="v-host"></select>
+        <input type="text" id="v-title" placeholder="Video Title">
+        <input type="text" id="v-url" placeholder="Supabase Video URL">
+        <button onclick="addVideo()" style="background:#0088cc;">Publish Live</button>
+    </div>
+    <script>
+        async function loadHosts() {
+            const res = await fetch('/api/admin/get-hosts');
+            const data = await res.json();
+            const select = document.getElementById('v-host');
+            select.innerHTML = '';
+            data.forEach(h => select.innerHTML += `<option value="${h.id}">${h.name}</option>`);
+        }
+        async function createHost() {
+            await fetch('/api/admin/create-host', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: document.getElementById('h-name').value, profile_pic: document.getElementById('h-pic').value, cost_per_video: document.getElementById('h-cost').value})
+            });
+            alert('Host Created!'); loadHosts();
+        }
+        async function addVideo() {
+            await fetch('/api/admin/add-video', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host_id: document.getElementById('v-host').value, title: document.getElementById('v-title').value, video_url: document.getElementById('v-url').value})
+            });
+            alert('Video Live Now!');
+        }
+        loadHosts();
+    </script>
+</body>
+          </html>
+          
